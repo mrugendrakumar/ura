@@ -3,11 +3,11 @@ const userModel = require("../models/userModel");
 
 const createUser = async function (abcd, xyz) {
   //You can name the req, res objects anything.
-  //but the first parameter is always the request 
+  //but the first parameter is always the request
   //the second parameter is always the response
   let data = abcd.body;
   let savedData = await userModel.create(data);
-  console.log(abcd.newAtribute);
+  console.log(abcd.newAttribute);
   xyz.send({ msg: savedData });
 };
 
@@ -19,7 +19,7 @@ const loginUser = async function (req, res) {
   if (!user)
     return res.send({
       status: false,
-      msg: "username or the password is not corerct",
+      msg: "username or the password is not correct",
     });
 
   // Once the login is successful, create the jwt token with sign function
@@ -32,29 +32,22 @@ const loginUser = async function (req, res) {
     {
       userId: user._id.toString(),
       batch: "thorium",
-      organisation: "FUnctionUp",
+      organization: "FUnctionUp",
     },
-    "functionup-thorium"
+    "functionUp-thorium"
   );
   res.setHeader("x-auth-token", token);
   res.send({ status: true, data: token });
 };
 
 const getUserData = async function (req, res) {
-  let token = req.headers["x-Auth-token"];
-  if (!token) token = req.headers["x-auth-token"];
-
-  //If no token is present in the request header return error
-  if (!token) return res.send({ status: false, msg: "token must be present" });
-
-  console.log(token);
-  
   // If a token is present then decode the token with verify function
   // verify takes two inputs:
   // Input 1 is the token to be decoded
   // Input 2 is the same secret with which the token was generated
   // Check the value of the decoded token yourself
-  let decodedToken = jwt.verify(token, "functionup-thorium");
+  let token = req.headers["x-auth-token"];
+  let decodedToken = jwt.verify(token, "functionUp-thorium");
   if (!decodedToken)
     return res.send({ status: false, msg: "token is invalid" });
 
@@ -67,10 +60,10 @@ const getUserData = async function (req, res) {
 };
 
 const updateUser = async function (req, res) {
-// Do the same steps here:
-// Check if the token is present
-// Check if the token present is a valid token
-// Return a different error message in both these cases
+  // Do the same steps here:
+  // Check if the token is present
+  // Check if the token present is a valid token
+  // Return a different error message in both these cases
 
   let userId = req.params.userId;
   let user = await userModel.findById(userId);
@@ -80,11 +73,58 @@ const updateUser = async function (req, res) {
   }
 
   let userData = req.body;
-  let updatedUser = await userModel.findOneAndUpdate({ _id: userId }, userData);
+  let updatedUser = await userModel.findOneAndUpdate(
+    { _id: userId },
+    userData,
+    { new: true }
+  );
   res.send({ status: updatedUser, data: updatedUser });
 };
 
+const deleteUser = async function (req, res) {
+  let userId = req.params.userId;
+  let user = await userModel.findById(userId);
+
+  if (!user) {
+    return res.send("No such user exists");
+  }
+  let updatedUser = await userModel.findOneAndUpdate(
+    { _id: userId },
+    { isDeleted: true },
+    { new: true }
+  );
+  res.send({ status: updatedUser, data: updatedUser });
+};
+
+const postMessage = async function (req, res) {
+  let message1 = req.body.message;
+  let token = req.headers["x-Auth-token"];
+  if (!token) token = req.headers["x-auth-token"];
+  if (!token) return res.send({ status: false, msg: "token must be present" });
+  let decodedToken = jwt.verify(token, "functionUp-thorium");
+  let userToBModified = req.params.userId;
+  let userLoggedIn = decodedToken.userId;
+
+  if (userToBModified !== userLoggedIn) {
+    return res.send({ status: false, msg: "User Login Has Not Allowed" });
+  }
+ 
+  let userId = req.params.userId;
+  let user = await userModel.findById(userId);
+  if (!user)
+    return res.status(400).send({ status: false, msg: "No such user exist" });
+  let updatedPosts = user.posts;
+  updatedPosts.push(message1);
+  let updatedUser = await userModel.findOneAndUpdate(
+    { _id: user._id },
+    { posts: updatedPosts },
+    { new: true }
+  );
+  return res.status(200).send({ status: true, data: updatedUser });
+};
 module.exports.createUser = createUser;
 module.exports.getUserData = getUserData;
 module.exports.updateUser = updateUser;
 module.exports.loginUser = loginUser;
+module.exports.deleteUser = deleteUser;
+module.exports.postMessage = postMessage;
